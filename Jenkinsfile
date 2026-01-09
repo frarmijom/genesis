@@ -27,7 +27,7 @@ pipeline {
     stage("Build + Unit Tests") {
       agent { label "LinuxBuild" }
       steps {
-sh(label: 'Build', script: '''#!/usr/bin/env bash
+        sh(label: 'Build', script: '''#!/usr/bin/env bash
 set -euxo pipefail
 mvn -v
 mvn clean test
@@ -38,12 +38,12 @@ mvn clean test
     stage("Package") {
       agent { label "LinuxBuild" }
       steps {
-        sh """
-          set -euxo pipefail
-          mvn clean package -DskipTests
-          ls -lh target/${JAR_NAME}
-          cp target/${JAR_NAME} .
-        """
+        sh(label: 'Package', script: """#!/usr/bin/env bash
+set -euxo pipefail
+mvn clean package -DskipTests
+ls -lh target/${JAR_NAME}
+cp target/${JAR_NAME} .
+""")
         archiveArtifacts artifacts: "${JAR_NAME}", fingerprint: true
         stash name: "jar", includes: "${JAR_NAME}"
       }
@@ -54,19 +54,18 @@ mvn clean test
       steps {
         unstash "jar"
         sshagent(credentials: [env.SRV_SSH_CRED]) {
-          sh """
-            set -euxo pipefail
-            scp ${JAR_NAME} jenkins_node@${TEST_HOST}:/tmp/genesis.jar
+          sh(label: 'Deploy TEST', script: """#!/usr/bin/env bash
+set -euxo pipefail
+scp ${JAR_NAME} jenkins_node@${TEST_HOST}:/tmp/genesis.jar
 
-            ssh jenkins_node@${TEST_HOST} '
-              set -euxo pipefail
-              sudo mv /tmp/genesis.jar ${APP_REMOTE}
-              sudo chown genesis:genesis ${APP_REMOTE}
-              sudo chmod 550 ${APP_REMOTE}
-              sudo systemctl restart genesis
-              sudo systemctl --no-pager --full status genesis | head -n 25
-            '
-          """
+ssh jenkins_node@${TEST_HOST} "bash -lc 'set -euxo pipefail
+sudo mv /tmp/genesis.jar ${APP_REMOTE}
+sudo chown genesis:genesis ${APP_REMOTE}
+sudo chmod 550 ${APP_REMOTE}
+sudo systemctl restart genesis
+sudo systemctl --no-pager --full status genesis | head -n 25
+'"
+""")
         }
       }
     }
@@ -74,20 +73,20 @@ mvn clean test
     stage("Smoke TEST") {
       agent { label "LinuxTest" }
       steps {
-        sh """
-          set -euxo pipefail
-          curl -fsS ${TEST_URL}/actuator/health | cat
+        sh(label: 'Smoke TEST', script: """#!/usr/bin/env bash
+set -euxo pipefail
+curl -fsS ${TEST_URL}/actuator/health | cat
 
-          curl -fsS -X POST ${TEST_URL}/api/v1/calculations \
-            -H "Content-Type: application/json" \
-            -d '{
-              "functionType":"GAUSSIAN_SIN",
-              "a":-2,
-              "b":2,
-              "samplesN":200000,
-              "seed":42
-            }' | cat
-        """
+curl -fsS -X POST ${TEST_URL}/api/v1/calculations \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "functionType":"GAUSSIAN_SIN",
+    "a":-2,
+    "b":2,
+    "samplesN":200000,
+    "seed":42
+  }' | cat
+""")
       }
     }
 
@@ -103,19 +102,18 @@ mvn clean test
       steps {
         unstash "jar"
         sshagent(credentials: [env.SRV_SSH_CRED]) {
-          sh """
-            set -euxo pipefail
-            scp ${JAR_NAME} jenkins_node@${PROD_HOST}:/tmp/genesis.jar
+          sh(label: 'Deploy PROD', script: """#!/usr/bin/env bash
+set -euxo pipefail
+scp ${JAR_NAME} jenkins_node@${PROD_HOST}:/tmp/genesis.jar
 
-            ssh jenkins_node@${PROD_HOST} '
-              set -euxo pipefail
-              sudo mv /tmp/genesis.jar ${APP_REMOTE}
-              sudo chown genesis:genesis ${APP_REMOTE}
-              sudo chmod 550 ${APP_REMOTE}
-              sudo systemctl restart genesis
-              sudo systemctl --no-pager --full status genesis | head -n 25
-            '
-          """
+ssh jenkins_node@${PROD_HOST} "bash -lc 'set -euxo pipefail
+sudo mv /tmp/genesis.jar ${APP_REMOTE}
+sudo chown genesis:genesis ${APP_REMOTE}
+sudo chmod 550 ${APP_REMOTE}
+sudo systemctl restart genesis
+sudo systemctl --no-pager --full status genesis | head -n 25
+'"
+""")
         }
       }
     }
@@ -123,10 +121,10 @@ mvn clean test
     stage("Smoke PROD") {
       agent { label "LinuxProd" }
       steps {
-        sh """
-          set -euxo pipefail
-          curl -fsS ${PROD_URL}/actuator/health | cat
-        """
+        sh(label: 'Smoke PROD', script: """#!/usr/bin/env bash
+set -euxo pipefail
+curl -fsS ${PROD_URL}/actuator/health | cat
+""")
       }
     }
   }
