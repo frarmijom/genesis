@@ -4,11 +4,10 @@ pipeline {
   environment {
     JAR_NAME      = "genesis-0.0.1-SNAPSHOT.jar"
     APP_REMOTE    = "/opt/genesis/app/genesis.jar"
-    CFG_DIR       = "/opt/genesis/config"
-    TEST_HOST     = "192.168.1.208"
-    PROD_HOST     = "192.168.1.209"
-    TEST_URL      = "http://192.168.1.208:8080"
-    PROD_URL      = "http://192.168.1.209:8080"
+
+    TEST_HOST     = "192.168.1.208"   // prd07
+    PROD_HOST     = "192.168.1.209"   // prd08
+
     GIT_SSH_CRED  = "jenkins_remote"
     SRV_SSH_CRED  = "linux-agentr-ssh"
   }
@@ -16,7 +15,7 @@ pipeline {
   stages {
 
     stage("Checkout") {
-      agent { label "LinuxBuild" }
+      agent { label "LinuxBuild" } // prd06
       steps {
         sshagent(credentials: [env.GIT_SSH_CRED]) {
           checkout scm
@@ -25,7 +24,7 @@ pipeline {
     }
 
     stage("Build + Unit Tests") {
-      agent { label "LinuxBuild" }
+      agent { label "LinuxBuild" } // prd06
       steps {
         sh(label: 'Build', script: '''#!/usr/bin/env bash
 set -euxo pipefail
@@ -36,7 +35,7 @@ mvn clean test
     }
 
     stage("Package") {
-      agent { label "LinuxBuild" }
+      agent { label "LinuxBuild" } // prd06
       steps {
         sh(label: 'Package', script: """#!/usr/bin/env bash
 set -euxo pipefail
@@ -50,34 +49,34 @@ cp target/${JAR_NAME} .
     }
 
     stage("Deploy to TEST") {
-      agent { label "LinuxTest" }
+      agent { label "LinuxBuild" } // DEPLOY desde BUILD (prd06)
       steps {
         unstash "jar"
         sshagent(credentials: [env.SRV_SSH_CRED]) {
           sh(label: 'Deploy TEST', script: """#!/usr/bin/env bash
 set -euxo pipefail
-scp ${JAR_NAME} jenkins_node@${TEST_HOST}:/tmp/genesis.jar
+scp -o BatchMode=yes ${JAR_NAME} jenkins_node@${TEST_HOST}:/tmp/genesis.jar
 
-ssh jenkins_node@${TEST_HOST} "bash -lc 'set -euxo pipefail
-sudo mv /tmp/genesis.jar ${APP_REMOTE}
-sudo chown genesis:genesis ${APP_REMOTE}
-sudo chmod 550 ${APP_REMOTE}
-sudo systemctl restart genesis
-sudo systemctl --no-pager --full status genesis | head -n 25
+ssh -o BatchMode=yes jenkins_node@${TEST_HOST} "bash -lc 'set -euxo pipefail
+sudo -n mv /tmp/genesis.jar ${APP_REMOTE}
+sudo -n chown genesis:genesis ${APP_REMOTE}
+sudo -n chmod 550 ${APP_REMOTE}
+sudo -n systemctl restart genesis
+sudo -n systemctl --no-pager --full status genesis | head -n 25
 '"
 """)
         }
       }
     }
 
-    stage("Smoke TEST") {
-      agent { label "LinuxTest" }
+    stage("Smoke TEST (local)") {
+      agent { label "LinuxTest" } // prd07
       steps {
         sh(label: 'Smoke TEST', script: """#!/usr/bin/env bash
 set -euxo pipefail
-curl -fsS ${TEST_URL}/actuator/health | cat
+curl -fsS http://localhost:8080/actuator/health | cat
 
-curl -fsS -X POST ${TEST_URL}/api/v1/calculations \\
+curl -fsS -X POST http://localhost:8080/api/v1/calculations \\
   -H "Content-Type: application/json" \\
   -d '{
     "functionType":"GAUSSIAN_SIN",
@@ -93,37 +92,37 @@ curl -fsS -X POST ${TEST_URL}/api/v1/calculations \\
     stage("Approval to PROD") {
       agent any
       steps {
-        input message: "¿Desplegar a PROD (prd08)?", ok: "Deploy"
+        input message: "¿Desplegar a PROD (prd08 / 192.168.1.209)?", ok: "Deploy"
       }
     }
 
     stage("Deploy to PROD") {
-      agent { label "LinuxProd" }
+      agent { label "LinuxBuild" } // DEPLOY desde BUILD (prd06)
       steps {
         unstash "jar"
         sshagent(credentials: [env.SRV_SSH_CRED]) {
           sh(label: 'Deploy PROD', script: """#!/usr/bin/env bash
 set -euxo pipefail
-scp ${JAR_NAME} jenkins_node@${PROD_HOST}:/tmp/genesis.jar
+scp -o BatchMode=yes ${JAR_NAME} jenkins_node@${PROD_HOST}:/tmp/genesis.jar
 
-ssh jenkins_node@${PROD_HOST} "bash -lc 'set -euxo pipefail
-sudo mv /tmp/genesis.jar ${APP_REMOTE}
-sudo chown genesis:genesis ${APP_REMOTE}
-sudo chmod 550 ${APP_REMOTE}
-sudo systemctl restart genesis
-sudo systemctl --no-pager --full status genesis | head -n 25
+ssh -o BatchMode=yes jenkins_node@${PROD_HOST} "bash -lc 'set -euxo pipefail
+sudo -n mv /tmp/genesis.jar ${APP_REMOTE}
+sudo -n chown genesis:genesis ${APP_REMOTE}
+sudo -n chmod 550 ${APP_REMOTE}
+sudo -n systemctl restart genesis
+sudo -n systemctl --no-pager --full status genesis | head -n 25
 '"
 """)
         }
       }
     }
 
-    stage("Smoke PROD") {
-      agent { label "LinuxProd" }
+    stage("Smoke PROD (local)") {
+      agent { label "LinuxProd" } // prd08
       steps {
         sh(label: 'Smoke PROD', script: """#!/usr/bin/env bash
 set -euxo pipefail
-curl -fsS ${PROD_URL}/actuator/health | cat
+curl -fsS http://localhost:8080/actuator/health | cat
 """)
       }
     }
