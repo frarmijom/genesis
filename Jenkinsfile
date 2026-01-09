@@ -7,8 +7,8 @@ pipeline {
     CFG_DIR       = "/opt/genesis/config"
     TEST_HOST     = "192.168.1.208"
     PROD_HOST     = "192.168.1.209"
-    TEST_URL      = "http://prd07:8080"
-    PROD_URL      = "http://prd08:8080"
+    TEST_URL      = "http://192.168.1.208:8080"
+    PROD_URL      = "http://192.168.1.209:8080"
     GIT_SSH_CRED  = "jenkins_remote"
     SRV_SSH_CRED  = "linux-agentr-ssh"
   }
