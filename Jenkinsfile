@@ -27,11 +27,11 @@ pipeline {
     stage("Build + Unit Tests") {
       agent { label "LinuxBuild" }
       steps {
-        sh '''
-          set -euxo pipefail
-          mvn -v
-          mvn clean test
-        '''
+sh(label: 'Build', script: '''#!/usr/bin/env bash
+set -euxo pipefail
+mvn -v
+mvn clean test
+''')
       }
     }
 
