@@ -3,9 +3,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://192.168.4.46:5432/mydatabase
-    username: myuser
-    password: mypassword
+    url: jdbc:postgresql://192.168.4.46:5432/genesis
+    username: genesis
+    password: genesis
   jpa:
     hibernate:
       ddl-auto: update
