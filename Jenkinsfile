@@ -10,6 +10,7 @@ pipeline {
 
     GIT_SSH_CRED  = "github_ssh_jenkins"
     SRV_SSH_CRED_PRD07  = "ssh-prd07"
+    SRV_SSH_CRED_PRD08  = "ssh-prd08"
   }
 
   stages {
@@ -100,7 +101,7 @@ curl -fsS -X POST http://localhost:8080/api/v1/calculations \\
       agent { label "LinuxBuild" } // DEPLOY desde BUILD (prd06)
       steps {
         unstash "jar"
-        sshagent(credentials: [env.SRV_SSH_CRED]) {
+        sshagent(credentials: [env.SRV_SSH_CRED_PRD08]) {
           sh(label: 'Deploy PROD', script: """#!/usr/bin/env bash
 set -euxo pipefail
 scp -o BatchMode=yes ${JAR_NAME} jenkins_node@${PROD_HOST}:/tmp/genesis.jar
