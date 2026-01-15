@@ -7,34 +7,27 @@ pipeline {
   }
 
   environment {
-    // Build artifact
     JAR_NAME     = "genesis-0.0.1-SNAPSHOT.jar"
 
-    // Remote layout
     APP_SYMLINK  = "/opt/genesis/app/genesis.jar"
     RELEASES_DIR = "/opt/genesis/releases"
     CONFIG_DIR   = "/opt/genesis/config"
     SERVICE_NAME = "genesis"
 
-    // Targets
     TEST_HOST    = "192.168.1.208"   // prd07
     PROD_HOST    = "192.168.1.209"   // prd08
     REMOTE_USER  = "ci_ops"
 
-    // Jenkins credentials IDs
     GIT_SSH_CRED = "github_ssh_jenkins"
     SRV_SSH_CRED = "linux-agentr-ssh"
 
-    // Healthcheck
     HEALTH_PATH  = "/actuator/health"
     TEST_PORT    = "8080"
     PROD_PORT    = "8080"
 
-    // Thresholds/timing
     READINESS_TIMEOUT_SEC = "120"
     READINESS_SLEEP_SEC   = "3"
 
-    // SSH hardening for CI
     SSH_OPTS = "-o BatchMode=yes -o ConnectTimeout=5 -o ServerAliveInterval=10 -o ServerAliveCountMax=3"
   }
 
@@ -52,7 +45,7 @@ pipeline {
       steps {
         sh '''
           set -eu
-          bash -lc <<'BASH'
+          bash -s <<'BASH'
             set -euo pipefail
             set -x
 
@@ -78,7 +71,7 @@ BASH
         sshagent(credentials: [env.SRV_SSH_CRED]) {
           sh '''
             set -eu
-            bash -lc <<'BASH'
+            bash -s <<'BASH'
               set -euo pipefail
               set -x
 
@@ -129,7 +122,7 @@ BASH
       steps {
         sh '''
           set -eu
-          bash -lc <<'BASH'
+          bash -s <<'BASH'
             set -euo pipefail
             set -x
 
@@ -169,7 +162,7 @@ BASH
         sshagent(credentials: [env.SRV_SSH_CRED]) {
           sh '''
             set -eu
-            bash -lc <<'BASH'
+            bash -s <<'BASH'
               set -euo pipefail
               set -x
 
@@ -220,7 +213,7 @@ BASH
       steps {
         sh '''
           set -eu
-          bash -lc <<'BASH'
+          bash -s <<'BASH'
             set -euo pipefail
             set -x
 
@@ -263,7 +256,7 @@ BASH
           sshagent(credentials: [env.SRV_SSH_CRED]) {
             sh '''
               set +e
-              bash -lc <<'BASH'
+              bash -s <<'BASH'
                 echo "==> TEST systemd status/logs"
                 ssh ${SSH_OPTS} "${REMOTE_USER}@${TEST_HOST}" "sudo systemctl status ${SERVICE_NAME} --no-pager" || true
                 ssh ${SSH_OPTS} "${REMOTE_USER}@${TEST_HOST}" "sudo journalctl -u ${SERVICE_NAME} -n 80 --no-pager" || true
@@ -276,7 +269,7 @@ BASH
           sshagent(credentials: [env.SRV_SSH_CRED]) {
             sh '''
               set +e
-              bash -lc <<'BASH'
+              bash -s <<'BASH'
                 echo "==> PROD systemd status/logs"
                 ssh ${SSH_OPTS} "${REMOTE_USER}@${PROD_HOST}" "sudo systemctl status ${SERVICE_NAME} --no-pager" || true
                 ssh ${SSH_OPTS} "${REMOTE_USER}@${PROD_HOST}" "sudo journalctl -u ${SERVICE_NAME} -n 80 --no-pager" || true
