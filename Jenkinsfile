@@ -19,7 +19,7 @@ pipeline {
     REMOTE_USER  = "ci_ops"
 
     GIT_SSH_CRED = "github_ssh_jenkins"
-    SRV_SSH_CRED = "ci_ops"
+    SRV_SSH_CRED = "linux-agentr-ssh"
 
     HEALTH_PATH  = "/actuator/health"
     TEST_PORT    = "8080"
