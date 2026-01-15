@@ -8,7 +8,7 @@ pipeline {
     TEST_HOST     = "192.168.1.208"   // prd07
     PROD_HOST     = "192.168.1.209"   // prd08
 
-    GIT_SSH_CRED  = "jenkins_ops"
+    GIT_SSH_CRED  = "git"
     SRV_SSH_CRED  = "linux-agentr-ssh"
   }
 
