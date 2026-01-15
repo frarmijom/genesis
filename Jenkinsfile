@@ -50,8 +50,9 @@ pipeline {
 
     stage("Build + Unit Tests") {
       steps {
-        sh """
-          bash -lc '
+        sh '''
+          set -eu
+          bash -lc <<'BASH'
             set -euo pipefail
             set -x
 
@@ -59,8 +60,8 @@ pipeline {
             mvn -version
             mvn -U -B clean test package
             test -f "target/${JAR_NAME}"
-          '
-        """
+BASH
+        '''
       }
       post {
         always {
@@ -75,8 +76,9 @@ pipeline {
     stage("Deploy to TEST") {
       steps {
         sshagent(credentials: [env.SRV_SSH_CRED]) {
-          sh """
-            bash -lc '
+          sh '''
+            set -eu
+            bash -lc <<'BASH'
               set -euo pipefail
               set -x
 
@@ -87,16 +89,16 @@ pipeline {
               REL_JAR="${REL_DIR}/${JAR_NAME}"
 
               echo "==> Prepare release dir on TEST: ${REL_DIR}"
-              ssh ${SSH_OPTS} "${REMOTE_USER}@${HOST}" "sudo mkdir -p \\"${REL_DIR}\\" && sudo chown -R ${REMOTE_USER}:${REMOTE_USER} \\"${REL_DIR}\\""
+              ssh ${SSH_OPTS} "${REMOTE_USER}@${HOST}" "sudo mkdir -p '${REL_DIR}' && sudo chown -R ${REMOTE_USER}:${REMOTE_USER} '${REL_DIR}'"
 
               echo "==> Upload jar to TEST: ${REL_JAR}"
               scp ${SSH_OPTS} "target/${JAR_NAME}" "${REMOTE_USER}@${HOST}:${REL_JAR}"
 
               echo "==> Switch symlink: ${APP_SYMLINK} -> ${REL_JAR}"
-              ssh ${SSH_OPTS} "${REMOTE_USER}@${HOST}" "sudo ln -sfn \\"${REL_JAR}\\" \\"${APP_SYMLINK}\\" && sudo chown -h root:root \\"${APP_SYMLINK}\\""
+              ssh ${SSH_OPTS} "${REMOTE_USER}@${HOST}" "sudo ln -sfn '${REL_JAR}' '${APP_SYMLINK}' && sudo chown -h root:root '${APP_SYMLINK}'"
 
               echo "==> Restart service with retry+backoff"
-              ssh ${SSH_OPTS} "${REMOTE_USER}@${HOST}" "bash -s" -- "${SERVICE_NAME}" <<'"'"'EOS'"'"'
+              ssh ${SSH_OPTS} "${REMOTE_USER}@${HOST}" "bash -s" -- "${SERVICE_NAME}" <<'EOS'
 set -euo pipefail
 svc="$1"
 backoff=(1 2 4 8 16)
@@ -117,16 +119,17 @@ echo "restart failed after retries"
 sudo systemctl status "$svc" --no-pager || true
 exit 1
 EOS
-            '
-          """
+BASH
+          '''
         }
       }
     }
 
     stage("Readiness + Smoke TEST") {
       steps {
-        sh """
-          bash -lc '
+        sh '''
+          set -eu
+          bash -lc <<'BASH'
             set -euo pipefail
             set -x
 
@@ -134,16 +137,16 @@ EOS
             URL="http://${HOST}:${TEST_PORT}${HEALTH_PATH}"
 
             echo "==> Readiness loop: ${URL}"
-            deadline=$(( \$(date +%s) + ${READINESS_TIMEOUT_SEC} ))
+            deadline=$(( $(date +%s) + READINESS_TIMEOUT_SEC ))
 
             while true; do
-              if curl -fsS "$URL" | grep -q '"'"'"status":"UP"'"'"'; then
+              if curl -fsS "$URL" | grep -q '"status":"UP"'; then
                 echo "READY: status UP"
                 break
               fi
 
-              now=\$(date +%s)
-              if [ "\$now" -ge "\$deadline" ]; then
+              now=$(date +%s)
+              if [ "$now" -ge "$deadline" ]; then
                 echo "❌ Readiness timeout after ${READINESS_TIMEOUT_SEC}s"
                 echo "==> curl debug:"
                 curl -sv "$URL" || true
@@ -155,8 +158,8 @@ EOS
 
             echo "==> Smoke test: actuator health"
             curl -fsv "$URL"
-          '
-        """
+BASH
+        '''
       }
     }
 
@@ -164,8 +167,9 @@ EOS
       when { expression { currentBuild.currentResult == 'SUCCESS' } }
       steps {
         sshagent(credentials: [env.SRV_SSH_CRED]) {
-          sh """
-            bash -lc '
+          sh '''
+            set -eu
+            bash -lc <<'BASH'
               set -euo pipefail
               set -x
 
@@ -176,16 +180,16 @@ EOS
               REL_JAR="${REL_DIR}/${JAR_NAME}"
 
               echo "==> Prepare release dir on PROD: ${REL_DIR}"
-              ssh ${SSH_OPTS} "${REMOTE_USER}@${HOST}" "sudo mkdir -p \\"${REL_DIR}\\" && sudo chown -R ${REMOTE_USER}:${REMOTE_USER} \\"${REL_DIR}\\""
+              ssh ${SSH_OPTS} "${REMOTE_USER}@${HOST}" "sudo mkdir -p '${REL_DIR}' && sudo chown -R ${REMOTE_USER}:${REMOTE_USER} '${REL_DIR}'"
 
               echo "==> Upload jar to PROD: ${REL_JAR}"
               scp ${SSH_OPTS} "target/${JAR_NAME}" "${REMOTE_USER}@${HOST}:${REL_JAR}"
 
               echo "==> Switch symlink: ${APP_SYMLINK} -> ${REL_JAR}"
-              ssh ${SSH_OPTS} "${REMOTE_USER}@${HOST}" "sudo ln -sfn \\"${REL_JAR}\\" \\"${APP_SYMLINK}\\" && sudo chown -h root:root \\"${APP_SYMLINK}\\""
+              ssh ${SSH_OPTS} "${REMOTE_USER}@${HOST}" "sudo ln -sfn '${REL_JAR}' '${APP_SYMLINK}' && sudo chown -h root:root '${APP_SYMLINK}'"
 
               echo "==> Restart service with retry+backoff"
-              ssh ${SSH_OPTS} "${REMOTE_USER}@${HOST}" "bash -s" -- "${SERVICE_NAME}" <<'"'"'EOS'"'"'
+              ssh ${SSH_OPTS} "${REMOTE_USER}@${HOST}" "bash -s" -- "${SERVICE_NAME}" <<'EOS'
 set -euo pipefail
 svc="$1"
 backoff=(1 2 4 8 16)
@@ -206,16 +210,17 @@ echo "restart failed after retries"
 sudo systemctl status "$svc" --no-pager || true
 exit 1
 EOS
-            '
-          """
+BASH
+          '''
         }
       }
     }
 
     stage("Readiness + Smoke PROD") {
       steps {
-        sh """
-          bash -lc '
+        sh '''
+          set -eu
+          bash -lc <<'BASH'
             set -euo pipefail
             set -x
 
@@ -223,16 +228,16 @@ EOS
             URL="http://${HOST}:${PROD_PORT}${HEALTH_PATH}"
 
             echo "==> Readiness loop: ${URL}"
-            deadline=$(( \$(date +%s) + ${READINESS_TIMEOUT_SEC} ))
+            deadline=$(( $(date +%s) + READINESS_TIMEOUT_SEC ))
 
             while true; do
-              if curl -fsS "$URL" | grep -q '"'"'"status":"UP"'"'"'; then
+              if curl -fsS "$URL" | grep -q '"status":"UP"'; then
                 echo "READY: status UP"
                 break
               fi
 
-              now=\$(date +%s)
-              if [ "\$now" -ge "\$deadline" ]; then
+              now=$(date +%s)
+              if [ "$now" -ge "$deadline" ]; then
                 echo "❌ Readiness timeout after ${READINESS_TIMEOUT_SEC}s"
                 echo "==> curl debug:"
                 curl -sv "$URL" || true
@@ -244,8 +249,8 @@ EOS
 
             echo "==> Smoke test: actuator health"
             curl -fsv "$URL"
-          '
-        """
+BASH
+        '''
       }
     }
   }
@@ -256,27 +261,27 @@ EOS
       script {
         try {
           sshagent(credentials: [env.SRV_SSH_CRED]) {
-            sh """
-              bash -lc '
-                set +e
+            sh '''
+              set +e
+              bash -lc <<'BASH'
                 echo "==> TEST systemd status/logs"
                 ssh ${SSH_OPTS} "${REMOTE_USER}@${TEST_HOST}" "sudo systemctl status ${SERVICE_NAME} --no-pager" || true
                 ssh ${SSH_OPTS} "${REMOTE_USER}@${TEST_HOST}" "sudo journalctl -u ${SERVICE_NAME} -n 80 --no-pager" || true
-              '
-            """
+BASH
+            '''
           }
         } catch (e) { echo "Could not collect TEST logs: ${e}" }
 
         try {
           sshagent(credentials: [env.SRV_SSH_CRED]) {
-            sh """
-              bash -lc '
-                set +e
+            sh '''
+              set +e
+              bash -lc <<'BASH'
                 echo "==> PROD systemd status/logs"
                 ssh ${SSH_OPTS} "${REMOTE_USER}@${PROD_HOST}" "sudo systemctl status ${SERVICE_NAME} --no-pager" || true
                 ssh ${SSH_OPTS} "${REMOTE_USER}@${PROD_HOST}" "sudo journalctl -u ${SERVICE_NAME} -n 80 --no-pager" || true
-              '
-            """
+BASH
+            '''
           }
         } catch (e) { echo "Could not collect PROD logs: ${e}" }
       }
