@@ -23,7 +23,7 @@ pipeline {
 
     // Jenkins credentials IDs
     GIT_SSH_CRED = "github_ssh_jenkins"
-    SRV_SSH_CRED = "ci_ops"
+    SRV_SSH_CRED = "linux-agentr-ssh"
 
     // Healthcheck
     HEALTH_PATH  = "/actuator/health"
@@ -51,7 +51,10 @@ pipeline {
     stage("Build + Unit Tests") {
       steps {
         sh '''
-          set -euxo pipefail
+          #!/usr/bin/env bash
+          set -euo pipefail
+          set -x
+
           java -version
           mvn -version
           mvn -U -B clean test package
@@ -72,7 +75,9 @@ pipeline {
       steps {
         sshagent(credentials: [env.SRV_SSH_CRED]) {
           sh '''
-            set -euxo pipefail
+            #!/usr/bin/env bash
+            set -euo pipefail
+            set -x
 
             HOST="${TEST_HOST}"
             BN="${BUILD_NUMBER}"
@@ -119,7 +124,9 @@ EOS
     stage("Readiness + Smoke TEST") {
       steps {
         sh '''
-          set -euxo pipefail
+          #!/usr/bin/env bash
+          set -euo pipefail
+          set -x
 
           HOST="${TEST_HOST}"
           URL="http://${HOST}:${TEST_PORT}${HEALTH_PATH}"
@@ -155,7 +162,9 @@ EOS
       steps {
         sshagent(credentials: [env.SRV_SSH_CRED]) {
           sh '''
-            set -euxo pipefail
+            #!/usr/bin/env bash
+            set -euo pipefail
+            set -x
 
             HOST="${PROD_HOST}"
             BN="${BUILD_NUMBER}"
@@ -202,7 +211,10 @@ EOS
     stage("Readiness + Smoke PROD") {
       steps {
         sh '''
-          set -euxo pipefail
+          #!/usr/bin/env bash
+          set -euo pipefail
+          set -x
+
           HOST="${PROD_HOST}"
           URL="http://${HOST}:${PROD_PORT}${HEALTH_PATH}"
 
@@ -236,13 +248,13 @@ EOS
   post {
     failure {
       echo "Pipeline failed. Gathering remote status/logs (best effort)."
-      // Best-effort: don't fail post actions
       script {
-        // Try TEST
         try {
           sshagent(credentials: [env.SRV_SSH_CRED]) {
             sh '''
+              #!/usr/bin/env bash
               set +e
+
               echo "==> TEST systemd status/logs"
               ssh ${SSH_OPTS} "${REMOTE_USER}@${TEST_HOST}" "sudo systemctl status ${SERVICE_NAME} --no-pager" || true
               ssh ${SSH_OPTS} "${REMOTE_USER}@${TEST_HOST}" "sudo journalctl -u ${SERVICE_NAME} -n 80 --no-pager" || true
@@ -250,11 +262,12 @@ EOS
           }
         } catch (e) { echo "Could not collect TEST logs: ${e}" }
 
-        // Try PROD
         try {
           sshagent(credentials: [env.SRV_SSH_CRED]) {
             sh '''
+              #!/usr/bin/env bash
               set +e
+
               echo "==> PROD systemd status/logs"
               ssh ${SSH_OPTS} "${REMOTE_USER}@${PROD_HOST}" "sudo systemctl status ${SERVICE_NAME} --no-pager" || true
               ssh ${SSH_OPTS} "${REMOTE_USER}@${PROD_HOST}" "sudo journalctl -u ${SERVICE_NAME} -n 80 --no-pager" || true
