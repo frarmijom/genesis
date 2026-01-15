@@ -9,7 +9,7 @@ pipeline {
     PROD_HOST     = "192.168.1.209"   // prd08
 
     GIT_SSH_CRED  = "github_ssh_jenkins"
-    SRV_SSH_CRED  = "linux-agentr-ssh"
+    SRV_SSH_CRED_PRD06  = "ssh-prd06"
   }
 
   stages {
