@@ -52,3 +52,4 @@ docker compose up -d
 Luego cambia el `application.yml` a `localhost:5432`.
 cambio.12
 Ultimo cambio 09-05-2026
+Ultimo cambio 01-07-2026
